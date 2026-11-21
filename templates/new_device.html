@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Register device{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Register a device</h1>
+  <form method="post">
+    <div class="grid2">
+      <div><label>Serial number / IMEI</label><input name="serial_number" required></div>
+      <div><label>Model</label>
+        <select name="model_id" required>
+          {% for m in models %}<option value="{{ m.model_id }}">{{ m.label }}</option>{% endfor %}
+        </select>
+        <span class="small muted">Model missing? Add it under <a href="{{ url_for('table_view', name='PRODUCT_MODEL') }}">Tables</a>.</span></div>
+      <div><label>Purchase date (first owner starts here)</label><input type="date" name="purchase_date" value="{{ today }}" required></div>
+      <div><label>First owner</label>
+        <select name="owner_id">
+          {% for o in owners %}<option value="{{ o.owner_id }}">{{ o.name }}</option>{% endfor %}
+          <option value="NEW">+ New person…</option>
+        </select></div>
+      <div><label>New person's name (if new)</label><input name="new_owner_name"></div>
+      <div><label>New person's contact (if new)</label><input name="new_owner_contact"></div>
+    </div>
+    <p><button>Register device</button></p>
+  </form>
+</div>
+{% endblock %}

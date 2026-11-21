@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Passport {{ d.serial_number }}{% endblock %}
+{% block content %}
+
+<div class="card">
+  <h1>{{ d.maker }} {{ d.model_name }}</h1>
+  <div class="grid">
+    <div class="kv"><span>Serial / IMEI</span><strong>{{ d.serial_number }}</strong></div>
+    <div class="kv"><span>Category</span><strong>{{ d.category_name }}</strong></div>
+    <div class="kv"><span>Release year</span><strong>{{ d.release_year or '—' }}</strong></div>
+    <div class="kv"><span>Purchase date</span><strong>{{ d.purchase_date or '—' }}</strong></div>
+    <div class="kv"><span>Current owner</span><strong>{{ current.name if current else '—' }}</strong></div>
+    <div class="kv"><span>Owners so far</span><strong>{{ owners|length }}</strong></div>
+    <div class="kv"><span>Repairs</span><strong>{{ repairs|length }}</strong></div>
+    <div class="kv"><span>Active warranty</span>
+      <strong>{% if warranties|selectattr('status','equalto','Active')|list %}Yes{% else %}No{% endif %}</strong></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Timeline</h2>
+  <table>
+    {% for dt, kind, text in timeline %}
+    <tr><td style="width:110px">{{ dt }}</td><td style="width:110px"><span class="badge b-{{ kind }}">{{ kind }}</span></td><td>{{ text }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h2>Ownership chain</h2>
+  <table>
+    <tr><th>#</th><th>Owner</th><th>Contact</th><th>From</th><th>To</th></tr>
+    {% for o in owners %}
+    <tr><td>{{ loop.index }}</td><td>{{ o.name }}</td><td>{{ o.contact_info or '—' }}</td>
+        <td>{{ o.start_date }}</td><td>{{ o.end_date or 'Current owner' }}</td></tr>
+    {% endfor %}
+  </table>
+  <details>
+    <summary>Transfer ownership (device sold)</summary>
+    <form method="post" action="{{ url_for('transfer', pid=d.product_id) }}">
+      <div class="grid2">
+        <div>
+          <label>New owner</label>
+          <select name="owner_id">
+            {% for o in owner_list %}<option value="{{ o.owner_id }}">{{ o.name }}</option>{% endfor %}
+            <option value="NEW">+ New person…</option>
+          </select>
+        </div>
+        <div><label>Date of sale</label><input type="date" name="start_date" value="{{ today }}" required></div>
+        <div><label>New person's name (if new)</label><input name="new_owner_name"></div>
+        <div><label>New person's contact (if new)</label><input name="new_owner_contact"></div>
+      </div>
+      <p class="small muted">The previous owner's end date is set to this same date, so the chain has no gaps.</p>
+      <button>Transfer</button>
+    </form>
+  </details>
+</div>
+
+<div class="card">
+  <h2>Repairs</h2>
+  <div class="table-scroll">
+  <table>
+    <tr><th>Date</th><th>Issue &amp; work</th><th>Repair center</th><th>Labour</th><th>Total</th></tr>
+    {% for r in repairs %}
+    <tr>
+      <td>{{ r.repair_date }}</td>
+      <td>{{ r.issue_description }}<br><span class="muted small">{{ r.work_performed }}</span>
+        {% if parts_by_repair.get(r.repair_id) %}
+        <ul class="parts">{% for p in parts_by_repair[r.repair_id] %}
+          <li>{{ p.part_name }} × {{ p.quantity }} @ {{ '%.2f'|format(p.part_cost) }}</li>{% endfor %}</ul>
+        {% endif %}
+      </td>
+      <td>{{ r.center_name }}, {{ r.city }}<br>
+        <span class="badge {{ 'b-yes' if r.is_authorized == 'Yes' else 'b-no' }}">{{ 'Authorized' if r.is_authorized == 'Yes' else 'Unauthorized' }}</span></td>
+      <td>{{ '%.2f'|format(r.labour_cost) }}</td>
+      <td><strong>{{ '%.2f'|format(r.total_cost) }}</strong></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">No repairs recorded.</td></tr>
+    {% endfor %}
+  </table>
+  </div>
+  <details>
+    <summary>Add a repair</summary>
+    <form method="post" action="{{ url_for('add_repair', pid=d.product_id) }}">
+      <div class="grid2">
+        <div><label>Repair center</label>
+          <select name="center_id" required>{% for c in centers %}<option value="{{ c.center_id }}">{{ c.center_name }} ({{ c.city }})</option>{% endfor %}</select>
+          <span class="small muted">Missing? Add it under <a href="{{ url_for('table_view', name='REPAIR_CENTER') }}">Tables</a>.</span></div>
+        <div><label>Repair date</label><input type="date" name="repair_date" value="{{ today }}" required></div>
+        <div><label>Issue</label><input name="issue_description" required></div>
+        <div><label>Work performed</label><input name="work_performed" required></div>
+        <div><label>Labour cost</label><input type="number" step="0.01" min="0" name="labour_cost" value="0"></div>
+      </div>
+      <label>Parts replaced (up to 3)</label>
+      {% for i in (1, 2, 3) %}
+      <div class="grid3" style="margin-bottom:8px">
+        <select name="part_id_{{ i }}"><option value="">— no part —</option>
+          {% for p in part_list %}<option value="{{ p.part_id }}">{{ p.part_name }}</option>{% endfor %}</select>
+        <input type="number" min="1" name="qty_{{ i }}" value="1" placeholder="Qty">
+        <input type="number" step="0.01" min="0" name="cost_{{ i }}" placeholder="Cost each">
+      </div>
+      {% endfor %}
+      <button>Save repair</button>
+    </form>
+  </details>
+</div>
+
+<div class="card">
+  <h2>Warranty history</h2>
+  <table>
+    <tr><th>Provider</th><th>From</th><th>To</th><th>Status</th></tr>
+    {% for w in warranties %}
+    <tr><td>{{ w.provider_name }}</td><td>{{ w.start_date }}</td><td>{{ w.end_date }}</td>
+        <td><span class="badge {{ 'b-active' if w.status == 'Active' else 'b-expired' }}">{{ w.status }}</span></td></tr>
+    {% else %}
+    <tr><td colspan="4" class="muted">No warranties recorded.</td></tr>
+    {% endfor %}
+  </table>
+  <p class="small muted">Status is calculated from the end date and today's date; it is not stored.</p>
+  <details>
+    <summary>Add a warranty</summary>
+    <form method="post" action="{{ url_for('add_warranty', pid=d.product_id) }}">
+      <div class="grid2">
+        <div><label>Provider</label>
+          <select name="provider_id" required>{% for p in providers %}<option value="{{ p.provider_id }}">{{ p.provider_name }}</option>{% endfor %}</select></div>
+        <div></div>
+        <div><label>Start date</label><input type="date" name="start_date" value="{{ today }}" required></div>
+        <div><label>End date</label><input type="date" name="end_date" required></div>
+      </div>
+      <button>Save warranty</button>
+    </form>
+  </details>
+</div>
+
+<div class="card">
+  <h2>Full report <span class="muted small">(from the vw_DevicePassport view)</span></h2>
+  <details>
+    <summary>Show flat report ({{ view_rows|length }} rows)</summary>
+    <div class="table-scroll">
+    <table>
+      <tr>{% for c in view_cols %}<th>{{ c }}</th>{% endfor %}</tr>
+      {% for r in view_rows %}
+      <tr>{% for c in view_cols %}<td>{{ r[c] if r[c] is not none else '—' }}</td>{% endfor %}</tr>
+      {% endfor %}
+    </table>
+    </div>
+  </details>
+</div>
+{% endblock %}

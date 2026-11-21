@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h1>Check a device's history</h1>
+  <p class="muted">Enter the serial number or IMEI to see its full passport: owners, repairs and warranties.</p>
+  <form class="search" action="{{ url_for('search') }}">
+    <input name="serial" placeholder="e.g. F2LX3091DN" required autofocus>
+    <button>View passport</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Registered devices ({{ devices|length }})</h2>
+  <div class="table-scroll">
+  <table>
+    <tr><th>Serial / IMEI</th><th>Device</th><th>Category</th><th>Current owner</th><th></th></tr>
+    {% for x in devices %}
+    <tr>
+      <td>{{ x.serial_number }}</td>
+      <td>{{ x.maker }} {{ x.model_name }}</td>
+      <td>{{ x.category_name }}</td>
+      <td>{{ x.current_owner or '—' }}</td>
+      <td><a href="{{ url_for('passport', serial=x.serial_number) }}">Open passport</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">No devices yet. <a href="{{ url_for('new_device') }}">Register one</a>.</td></tr>
+    {% endfor %}
+  </table>
+  </div>
+</div>
+{% endblock %}

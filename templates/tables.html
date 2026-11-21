@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Tables{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>Database tables</h1>
+  <div class="chips">
+    {% for t in tables %}<a href="{{ url_for('table_view', name=t) }}" class="{{ 'on' if t == name else '' }}">{{ t }}{% if counts %} ({{ counts[t] }}){% endif %}</a>{% endfor %}
+  </div>
+</div>
+
+{% if name %}
+<div class="card">
+  <h2>{{ name }} <span class="muted small">({{ rows|length }} rows)</span></h2>
+  <div class="table-scroll">
+  <table>
+    <tr>{% for c in columns %}<th>{{ c }}</th>{% endfor %}</tr>
+    {% for r in rows %}
+    <tr>{% for c in columns %}<td>{{ r[c] if r[c] is not none else 'NULL' }}</td>{% endfor %}</tr>
+    {% endfor %}
+  </table>
+  </div>
+</div>
+
+{% if fields %}
+<div class="card">
+  <h2>Add a row to {{ name }}</h2>
+  <form method="post">
+    <div class="grid2">
+      {% for f in fields %}
+      <div><label>{{ f.name }}</label>
+        {% if f.kind == 'select' %}
+          <select name="{{ f.name }}">{% for v, lab in f.options %}<option value="{{ v }}">{{ lab }}</option>{% endfor %}</select>
+        {% elif f.kind == 'number' %}<input type="number" name="{{ f.name }}">
+        {% else %}<input name="{{ f.name }}">{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <p><button>Add row</button></p>
+  </form>
+</div>
+{% else %}
+<p class="muted small">This table is filled in automatically by the forms on the device passport page.</p>
+{% endif %}
+{% endif %}
+{% endblock %}
